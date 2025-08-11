@@ -6,14 +6,17 @@
 
 \NeedsTeXFormat{LaTeX2e}[1999/12/01]
 \ProvidesClass{hautthesis}
-    [2025/08/08 v0.1 HAUT thesis template for the latest version]
+    [2025/08/11 v0.1.1 HAUT thesis template]
 
 % 变量
 \newif\if@haut@doctor
 \newif\if@haut@numerical
 \newif\if@haut@super
 \newif\if@haut@pdf
+\newif\if@haut@pro % 专业硕士
 \DeclareOption{doctor}{\@haut@doctortrue}
+\DeclareOption{master}{\@haut@doctorfalse \@haut@profalse}
+\DeclareOption{professional}{\@haut@protrue \@haut@doctorfalse} % 专业硕士
 \DeclareOption{print}{\@haut@pdffalse}
 \DeclareOption{pdf}{\@haut@pdftrue}
 \DeclareOption{super}{\@haut@numericaltrue\@haut@supertrue}
@@ -66,18 +69,6 @@
 \setCJKsansfont{simhei.ttf}[Path=\fontpath]
 \setmathfont{texgyretermes-math.otf}[Path=\fontpath]
 
-% 解决授权书中方框和对勾的问题
-\DeclareRobustCommand{\Box}{%
-  \text{\char"25A1}%
-}
-% 定义 \square，让它在数学模式或文本模式都有效
-\DeclareRobustCommand{\square}{%
-  \ifmmode
-    \Box
-  \else
-    \text{\Box}%
-  \fi
-}
 \DeclareRobustCommand{\checkmark}{\ding{51}}
 
 \hypersetup{
@@ -136,6 +127,7 @@
 \haut@define@term{chair}
 \haut@define@term{subject}
 \haut@define@term{type}
+\haut@define@term{outsupervisor} % 校外指导教师
 \haut@define@term{entitle}
 \haut@define@term{enauthor}
 \haut@define@term{enmajor}
@@ -144,14 +136,33 @@
 \haut@define@term{enbachelor}
 \haut@define@term{enhautname}
 \haut@define@term{ensupervisor}
+\haut@define@term{encosupervisor}
 \haut@define@term{entype}
 \haut@define@term{encollege}
 \haut@define@term{endissertation}
 \haut@define@term{endegree}
+% \haut@define@term{enoutsupervisor} % 校外指导教师
+
+% 设置学位类型
+\AtBeginDocument{%
+  \if@haut@doctor
+    \type{博士}\entype{PhD}\endegree{Doctor}%
+  \else\if@haut@pro
+    \type{硕士}\entype{Master}\endegree{Master}%
+  \else
+    \type{硕士}\entype{Master}\endegree{Master}%
+  \fi\fi
+}
 
 \if@haut@doctor
-    \newcommand\haut@thesisname{学位论文}%
+    \newcommand\haut@thesisname{博士学位论文}%
+\else
+    \newcommand\haut@thesisname{硕士学位论文}%
 \fi
+
+% 导出学位词（中文/英文）
+\newcommand{\degreetypeCN}{\haut@type}
+\newcommand{\degreetypeEN}{\haut@entype}
 
 % 表格：
 % 三线表
@@ -405,7 +416,6 @@
     }
       \cleardoublepage
       \else
-      % openany 时直接用 \clearpage
       \renewcommand*{\cleardoublepage}{\clearpage}
     \fi
     % --end--
@@ -423,12 +433,37 @@
     \let\cleardoublepage\oldcleardoublepage
 }
 
-\newcommand\haut@supervisorline{%
-  \ifx\haut@encosupervisor\@empty%
-    Supervisor: \haut@ensupervisor%
-  \else%
-    Supervisors: \haut@ensupervisor, \haut@encosupervisor%
-  \fi}
+% 多导师渲染（中文）
+\newcommand{\haut@supervisorsCN}{%
+  \ifx\haut@cosupervisor\@empty
+    % 只有一位导师
+    \sffamily\textbf{\haut@supervisor}%
+  \else
+    % 两位导师
+    \parbox[t]{8cm}{%
+      \sffamily\textbf{\haut@supervisor}\\[-0.3ex]%
+      \makebox[\linewidth][l]{\haut@cosupervisor}%
+      \vspace{0.8ex}
+    }%
+  \fi
+}%
+
+% 多导师渲染（英文）
+\newcommand{\haut@supervisorsEN}{%
+  \ifx\haut@encosupervisor\@empty
+    % 只有一位导师
+    \haut@ensupervisor
+  \else
+    % 两位导师
+    \parbox[t]{8cm}{%
+      \text{\haut@ensupervisor}\\[-0.3ex]%
+      \makebox[\linewidth][l]{\haut@encosupervisor}%
+      \vspace{0.8ex}
+    }%
+  \fi
+}%
+
+
 
 \RequirePackage{tikz}
 \newcommand\vpostext[2]{%
@@ -440,6 +475,20 @@
 \newcommand\linetext[3]{%
   \underline{\makebox[#1][#2]{#3}}
 }
+
+% 绘制密级方框
+\newcommand{\checkbox}[1][1.6ex]{%
+  \tikz[baseline=0ex]\draw[line width=0.5pt] (0,0) rectangle (#1,#1);
+}
+
+
+% 均匀分布的左栏标签
+\NewDocumentCommand{\evenlabel}{O{0pt} m}{%
+  {\renewcommand{\CJKglue}{\hskip0pt plus 1fil}%
+   \makebox[\@tw][s]{\hspace*{#1}\sffamily\bfseries #2}% 给个起始微移
+  }%
+}
+
 
 % 封面
 \RequirePackage{tabularx}
@@ -460,35 +509,53 @@
             \makebox[\@tw][r]{\text{学校代码:}} & \makebox[\@tw][l]{\haut@hautcode} \\%
             \makebox[\@tw][r]{\text{国际图书分类号:}} & \makebox[\@tw][l]{\haut@fclc} &
             \makebox[2.5cm][c]{\qquad} &
-            \makebox[\@tw][r]{\text{密级:}} & \makebox[\@tw][l]{$\square$}
+            \makebox[\@tw][r]{\text{密级:}} & \makebox[\@tw][l]{\checkbox}
           \end{tabularx}};%         
         
       \vpostext{7cm}{\includegraphics[height=2cm]{figures/logo/haut-logo.pdf}}%
       \vpostext{10cm}{%
         \begin{tabularx}{13cm}{@{}X@{}}%
-          \fontsize{42pt}{42pt}\selectfont\CJKfontspec{STXinwei.TTF}[Path=\fontpath]\makebox[13cm][s]{\haut@type\haut@thesisname}%
+          \fontsize{42pt}{42pt}\selectfont\CJKfontspec{STXinwei.TTF}[Path=\fontpath]\makebox[13cm][s]{\haut@thesisname}%
         \end{tabularx}%
       }
       \vpostext{13cm}{\CJKfontspec[Path=\fontpath,FakeBold=3]{simsun.ttc}\fontsize{32pt}{32pt}\selectfont\haut@title}%
 
       \tikz[remember picture,overlay]
-        \node [xshift=5cm,yshift=-18cm] at (current page.north west)%
+        \node [xshift=6cm,yshift=-18cm] at (current page.north west)%
             [below right,align=left] {%
 
-          \setlength{\@tw}{80pt}
-          \setlength{\@cw}{0.2em}
+          \setlength{\@tw}{85pt}
+          % \setlength{\@cw}{0.2em}
 
           \setfontsize{14pt}%
-          \begin{tabular}{@{}p{\@tw}l@{}}
-            \sffamily\textbf{作\hspace{\@cw}者\hspace{\@cw}姓\hspace{\@cw}名} & \sffamily\textbf{\haut@author} \\
-            \sffamily\textbf{指\hspace{\@cw}导\hspace{\@cw}教\hspace{\@cw}师} & \sffamily\textbf{\haut@supervisor} \\
-            \sffamily\textbf{学\hspace{\@cw}科\hspace{\@cw}门\hspace{\@cw}类} & \sffamily\textbf{\haut@subject} \\
-            \sffamily\textbf{学\hspace{\@cw}科\hspace{\@cw}专\hspace{\@cw}业} & \sffamily\textbf{\haut@major} \\
-            \sffamily\textbf{研\hspace{\@cw}究\hspace{\@cw}方\hspace{\@cw}向} & \sffamily\textbf{\haut@workon} \\
-            \sffamily\textbf{培\hspace{\@cw}养\hspace{\@cw}单\hspace{\@cw}位} & \sffamily\textbf{\haut@college} \\
-            \sffamily\textbf{完\hspace{\@cw}成\hspace{\@cw}时\hspace{\@cw}间} & \sffamily\textbf{\haut@submitdate}
-          \end{tabular}};
-      
+          \if@haut@pro
+            % 专业硕士版式
+            % FIX 对齐问题
+            \begin{tabular}{@{}l@{\hspace{1.6em}}l@{}}
+              \evenlabel[-0.95em]{作者姓名} & \sffamily\textbf{\haut@author} \\  % 不清楚为什么对不齐，加一点偏移补偿
+              \evenlabel{指导教师} & \sffamily\textbf{\haut@supervisorsCN} \\
+              \evenlabel{校外指导教师} & \sffamily\textbf{\haut@outsupervisor} \\
+              \evenlabel{学位类别} & \sffamily\textbf{\haut@subject} \\
+              \evenlabel{专业} & \sffamily\textbf{\haut@major} \\
+              \evenlabel{研究方向} & \sffamily\textbf{\haut@workon} \\
+              \evenlabel{培养单位} & \sffamily\textbf{\haut@college} \\
+              \evenlabel{完成时间} & \sffamily\textbf{\haut@submitdate}
+            \end{tabular}
+
+          \else
+             % 博/学硕 版式
+            \begin{tabular}{@{}l@{\hspace{1.6em}}l@{}}
+              \evenlabel[-0.95em]{作者姓名} & \sffamily\textbf{\haut@author} \\
+              \evenlabel{指导教师} & \sffamily\textbf{\haut@supervisorsCN} \\
+              \evenlabel{学科门类} & \sffamily\textbf{\haut@subject} \\
+              \evenlabel{学科专业} & \sffamily\textbf{\haut@major} \\
+              \evenlabel{研究方向} & \sffamily\textbf{\haut@workon} \\
+              \evenlabel{培养单位} & \sffamily\textbf{\haut@college} \\
+              \evenlabel{完成时间} & \sffamily\textbf{\haut@submitdate}
+            \end{tabular}
+          \fi
+        };
+
     \end{titlepage}
 }
 
@@ -524,16 +591,34 @@
           % \setlength{\@cw}{9.5cm}
 
           \setfontsize{14pt}%
-          \begin{tabular}{@{}l}%
-            \makebox[\@tw][s]{\sffamily\textbf{学号}}\qquad\haut@authorid \\%
-            \makebox[\@tw][s]{\sffamily\textbf{作者姓名}}\qquad\sffamily\textbf{\haut@author} \\
-            \makebox[\@tw][s]{\sffamily\textbf{指导教师}}\qquad\sffamily\textbf{\haut@supervisor} \\
-            \makebox[\@tw][s]{\sffamily\textbf{申请学位级别}}\qquad\sffamily\textbf{\haut@type} \\
-            \makebox[\@tw][s]{\sffamily\textbf{学科专业}}\qquad\sffamily\textbf{\haut@major} \\
-            \makebox[\@tw][s]{\sffamily\textbf{研究方向}}\qquad\sffamily\textbf{\haut@workon} \\
-            \makebox[\@tw][s]{\sffamily\textbf{培养单位}}\qquad\sffamily\textbf{\haut@college} \\
-            \makebox[\@tw][s]{\sffamily\textbf{论文答辩日期}}\qquad\sffamily\textbf{\haut@defensedate}
-          \end{tabular}};%
+          \if@haut@pro
+            % 专业硕士版式
+          % TODO 添加专硕模板
+            \begin{tabular}{@{}l@{\hspace{1.6em}}l@{}}
+              \evenlabel{学号} & \haut@authorid \\%
+              \evenlabel{作者姓名} & \sffamily\textbf{\haut@author} \\
+              \evenlabel{指导教师} & \sffamily\textbf{\haut@supervisorsCN} \\
+              \evenlabel{校外指导教师} & \sffamily\textbf{\haut@outsupervisor} \\
+              \evenlabel{申请学位级别} & \sffamily\textbf{\haut@type} \\
+              \evenlabel{专业} & \sffamily\textbf{\haut@major} \\
+              \evenlabel{研究方向} & \sffamily\textbf{\haut@workon} \\
+              \evenlabel{培养单位} & \sffamily\textbf{\haut@college} \\
+              \evenlabel{论文答辩日期} & \sffamily\textbf{\haut@defensedate}
+              \end{tabular}
+          \else
+            % 博/学硕 版式
+            \begin{tabular}{@{}l@{\hspace{1.6em}}l@{}}
+              \evenlabel{学号} & \haut@authorid \\%
+              \evenlabel{作者姓名} & \sffamily\textbf{\haut@author} \\
+              \evenlabel{指导教师} & \sffamily\textbf{\haut@supervisorsCN} \\
+              \evenlabel{申请学位级别} & \sffamily\textbf{\haut@type} \\
+              \evenlabel{学科专业} & \sffamily\textbf{\haut@major} \\
+              \evenlabel{研究方向} & \sffamily\textbf{\haut@workon} \\
+              \evenlabel{培养单位} & \sffamily\textbf{\haut@college} \\
+              \evenlabel{论文答辩日期} & \sffamily\textbf{\haut@defensedate}
+              \end{tabular}
+            \fi
+          };%
     \end{titlepage}
 }
 
@@ -554,7 +639,11 @@
         \end{tabularx}};%
 
       \vpostext{5.5cm}{\setfontsize{18pt}\text{\haut@enhautname}}%
-      \vpostext{6.5cm}{\setfontsize{18pt}\haut@endegree\space\text{Degree Dissertation}}%
+      \if@haut@doctor
+        \vpostext{6.5cm}{\setfontsize{18pt}\haut@endegree\space\text{Degree Dissertation}}%
+      \else
+        \vpostext{6.5cm}{\setfontsize{18pt}\haut@endegree\space\text{Degree Thesis}}%
+      \fi
       \vpostext{10cm}{\setfontsize{22pt}\textbf{\haut@entitle}}%
       
       \tikz[remember picture,overlay]
@@ -565,10 +654,11 @@
         \setlength{\@cw}{-0.7em}
 
         \setfontsize{15pt}%
+        % TODO 添加专硕模板，待定
         \begin{tabularx}{\linewidth}{rl}%
           \makebox[\@tw][r]{\text{Student Number:}} & \hspace{\@cw}\haut@authorid\\
           \makebox[\@tw][r]{\text{Candidate:}} & \hspace{\@cw}\haut@enauthor \\
-          \makebox[\@tw][r]{\text{Supervisor:}} & \hspace{\@cw}\haut@ensupervisor \\
+          \makebox[\@tw][r]{\text{Supervisor:}} & \hspace{\@cw}\haut@supervisorsEN \\
           \makebox[\@tw][r]{\text{Academic Degree Applied for:}} & \hspace{\@cw}\haut@entype\\
           \makebox[\@tw][r]{\text{Speciality:}} & \hspace{\@cw}\haut@enmajor\\
           \makebox[\@tw][r]{\text{Affiliations:}} & \hspace{\@cw}\parbox[t]{6cm}{\haut@encollege} \\
@@ -589,9 +679,9 @@
 \vspace{4cm}
 本学位论文属于
 
-1、保密 $\square$，在\qquad 年解密后适用本授权书。
+1、保密 \checkbox，在\qquad 年解密后适用本授权书。
 
-2、不保密 $\square$，使用本授权书。
+2、不保密 \checkbox，使用本授权书。
 
 （请在以上方框内打“\ding{51}”）
 }
@@ -629,7 +719,7 @@
       \sffamily
       \setfontsize{16pt}
       \makebox[3.5cm][s]{\textbf\haut@hautname}\\
-      \textbf{\haut@type\haut@thesisname\text{原创性声明}}
+      \textbf{\haut@thesisname\text{原创性声明}}
     \end{center}
     \vskip 0.5cm
 
